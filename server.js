@@ -66,10 +66,7 @@ async function sendEmailNotification(to, subject, htmlContent) {
 
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    connectionString: process.env.DATABASE_URL
 });
 
 // --- Middleware Global ---
