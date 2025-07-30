@@ -143,11 +143,11 @@ app.get('/auth/google',
 );
 
 // PERUBAHAN 1: Ubah redirect ke halaman callback baru kita
-app.get('/auth/google/callback', 
+app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
-        // Setelah login Google berhasil, arahkan ke halaman perantara
-        res.redirect('/auth_callback.html');
+        // Setelah login Google berhasil, arahkan ke halaman perantara di frontend
+        res.redirect('https://zingy-zabaione-a27ed6.netlify.app/auth_callback.html');
     }
 );
 
