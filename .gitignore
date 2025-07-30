@@ -1,0 +1,11 @@
+# Ketergantungan
+/node_modules
+
+# File environment
+.env
+
+# File log
+*.log
+
+# Skrip utilitas sensitif
+hashAdmin.js
