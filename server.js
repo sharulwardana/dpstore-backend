@@ -70,7 +70,10 @@ const pool = new Pool({
 });
 
 // --- Middleware Global ---
-app.use(cors());
+app.use(cors({
+    origin: 'https://zingy-zabaione-a27ed6.netlify.app', // Izinkan hanya dari website Netlify Anda
+    credentials: true // Izinkan pengiriman cookie
+}));
 app.use(express.json());
 
 // === KONFIGURASI SESSION & PASSPORT (BARU) ===
