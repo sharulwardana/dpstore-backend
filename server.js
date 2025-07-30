@@ -1683,5 +1683,5 @@ app.post('/api/validate-user-id', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server backend dan frontend berjalan di http://localhost:${port}`);
-    console.log(`Frontend Anda (dari folder '${path.basename(frontendPath)}') disajikan. Coba akses halaman utama di http://localhost:${port}/dua_putra.html`);
+    console.log(`Frontend Anda (dari folder '${path.basename(frontendPath)}') disajikan. Coba akses halaman utama di http://localhost:${port}/index.html`);
 });
