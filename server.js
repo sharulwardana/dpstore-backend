@@ -99,7 +99,7 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://zingy-zabaione-a27ed6.netlify.app/auth_callback.html",
+    callbackURL: "https://dpstore-backend-production.up.railway.app/auth/google/callback",
     proxy: true
 },
 async (accessToken, refreshToken, profile, done) => {
