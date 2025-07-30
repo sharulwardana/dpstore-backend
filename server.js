@@ -77,11 +77,16 @@ app.use(cors({
 app.use(express.json());
 
 // === KONFIGURASI SESSION & PASSPORT (BARU) ===
+app.set('trust proxy', 1); // <-- TAMBAHKAN BARIS INI
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false } // Set ke true jika menggunakan HTTPS
+    cookie: { 
+        secure: true, // Wajib true karena kita lintas domain via HTTPS
+        httpOnly: true,
+        sameSite: 'none' // Izinkan cookie dikirim dari domain lain (Netlify)
+    } 
 }));
 app.use(passport.initialize());
 app.use(passport.session());
