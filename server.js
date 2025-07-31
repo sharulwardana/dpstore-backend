@@ -28,7 +28,7 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    // ssl: { rejectUnauthorized: false } // Aktifkan jika perlu saat deploy
+    ssl: { rejectUnauthorized: false } // Aktifkan baris ini dengan menghapus tanda //
 });
 
 // --- Middleware Global ---
