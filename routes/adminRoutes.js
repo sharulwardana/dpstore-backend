@@ -324,6 +324,7 @@ router.get('/games', async (req, res) => {
     }
 });
 
+// Rute untuk mendapatkan detail game by ID <-- TAMBAHKAN BARIS INI
 router.get('/games/:id', async (req, res) => {
     const { id } = req.params;
     try {
