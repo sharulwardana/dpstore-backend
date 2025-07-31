@@ -1665,9 +1665,9 @@ app.post('/api/validate-user-id', async (req, res) => {
         requestUserId = `${userId.trim()}(${zoneId.trim()})`;
     }
 
-    // --- PERUBAHAN KUNCI ADA DI SINI ---
-    // Signature sekarang menyertakan Merchant ID, User ID, dan Secret Key
-    const signatureString = `${merchantId}${secretKey}${requestUserId}`;
+    // --- PERUBAHAN UTAMA DI SINI ---
+    // Mengubah urutan string untuk signature
+    const signatureString = `${merchantId}${requestUserId}${secretKey}`;
     const signature = crypto.createHash('md5').update(signatureString).digest('hex');
 
     const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${encodeURIComponent(requestUserId)}&signature=${signature}`;
@@ -1678,7 +1678,6 @@ app.post('/api/validate-user-id', async (req, res) => {
     try {
         const response = await axios.get(apiUrl);
 
-        // Memeriksa lebih banyak kemungkinan format error dari API
         if (response.data && response.data.status === 1 && response.data.data && response.data.data.is_valid) {
             console.log(`[VALIDATE_ID] Sukses dari ApiGames:`, response.data.data);
             res.json({ nickname: response.data.data.username });
@@ -1689,7 +1688,6 @@ app.post('/api/validate-user-id', async (req, res) => {
         }
 
     } catch (error) {
-        // Log yang lebih detail saat terjadi error
         const errorMessageFromServer = error.response ? (error.response.data.error_msg || error.response.data.message) : error.message;
         console.error(`[VALIDATE_ID] Error memanggil ApiGames untuk ${requestUserId}:`, errorMessageFromServer || "Tidak ada detail error dari server API");
         res.status(404).json({ error: errorMessageFromServer || 'User ID tidak ditemukan atau terjadi kesalahan.' });
