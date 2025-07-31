@@ -33,14 +33,22 @@ const pool = new Pool({
 
 // --- Middleware Global ---
 const corsOptions = {
-  origin: process.env.FRONTEND_URL, // Menggunakan variabel dari .env
+  origin: function (origin, callback) {
+    // Izinkan permintaan jika origin-nya cocok dengan FRONTEND_URL
+    // atau jika tidak ada origin (misalnya dari aplikasi seperti Postman)
+    if (!origin || origin === process.env.FRONTEND_URL) {
+      callback(null, true);
+    } else {
+      callback(new Error('Domain ini tidak diizinkan oleh CORS'));
+    }
+  },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Menangani pre-flight requests untuk semua rute
+app.options('*', cors(corsOptions)); // Baris ini tetap penting
 
 app.use(express.json());
 
