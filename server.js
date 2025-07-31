@@ -31,17 +31,6 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// === TAMBAHKAN BLOK INI UNTUK MENGETES KONEKSI (VERSI PERBAIKAN) ===
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('FATAL: Gagal melakukan query test ke database:', err.stack);
-    process.exit(1);
-  } else {
-    console.log('Koneksi dan query test ke database berhasil. Waktu saat ini:', res.rows[0].now);
-  }
-});
-// === AKHIR BLOK PERBAIKAN ===
-
 // --- CORS Configuration - DIPERBAIKI ---
 const allowedOrigins = [
   'https://zingy-zabaione-a27ed6.netlify.app', // URL Netlify Anda
