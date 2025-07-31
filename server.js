@@ -31,22 +31,16 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// === TAMBAHKAN BLOK INI UNTUK MENGETES KONEKSI ===
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('FATAL: Gagal terhubung ke database:', err.stack);
-        // Keluar dari proses jika koneksi gagal, ini akan membuat log error yang jelas
-        process.exit(1);
-    }
-    console.log('Koneksi ke database berhasil.');
-    client.query('SELECT NOW()', (err, result) => {
-        release(); // Selalu lepaskan client setelah digunakan
-        if (err) {
-            return console.error('Error saat menjalankan query test', err.stack);
-        }
-        console.log('Query test ke database berhasil. Waktu saat ini:', result.rows[0].now);
-    });
+// === TAMBAHKAN BLOK INI UNTUK MENGETES KONEKSI (VERSI PERBAIKAN) ===
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('FATAL: Gagal melakukan query test ke database:', err.stack);
+    process.exit(1);
+  } else {
+    console.log('Koneksi dan query test ke database berhasil. Waktu saat ini:', res.rows[0].now);
+  }
 });
+// === AKHIR BLOK PERBAIKAN ===
 
 // --- CORS Configuration - DIPERBAIKI ---
 const allowedOrigins = [
