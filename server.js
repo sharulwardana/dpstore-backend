@@ -1646,8 +1646,9 @@ app.post('/api/validate-user-id', async (req, res) => {
         return res.status(500).json({ error: 'Konfigurasi server tidak lengkap.' });
     }
     
+    // Pastikan game code sudah benar (mobilelegends)
     const gameCodeMap = {
-        'mobile-legends': 'mobilelegend',
+        'mobile-legends': 'mobilelegends',
         'free-fire': 'freefire',
     };
     const gameCode = gameCodeMap[gameSlug];
@@ -1658,18 +1659,19 @@ app.post('/api/validate-user-id', async (req, res) => {
     }
 
     let requestUserId = userId.trim();
-    if (gameCode === 'mobilelegend') {
+    if (gameCode === 'mobilelegends') {
         if (!zoneId || zoneId.trim() === '') {
             return res.status(400).json({ error: 'Zone ID dibutuhkan untuk Mobile Legends.' });
         }
         requestUserId = `${userId.trim()}(${zoneId.trim()})`;
     }
 
-    // --- PERUBAHAN UTAMA DI SINI ---
-    // Mengubah urutan string untuk signature
-    const signatureString = `${merchantId}${requestUserId}${secretKey}`;
+    // --- PERBAIKAN BERDASARKAN DOKUMENTASI RESMI ---
+    // Signature HARUS menggunakan format md5(merchant_id:secret_key)
+    const signatureString = `${merchantId}:${secretKey}`;
     const signature = crypto.createHash('md5').update(signatureString).digest('hex');
 
+    // Kita tidak perlu menyertakan user_id di dalam signature untuk endpoint cek-username
     const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${encodeURIComponent(requestUserId)}&signature=${signature}`;
     
     console.log(`[VALIDATE_ID] String untuk signature: ${signatureString}`);
