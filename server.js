@@ -1633,11 +1633,12 @@ app.post('/api/auth/reset-password/:token',
 app.post('/api/validate-user-id', async (req, res) => {
     const { gameSlug, userId, zoneId } = req.body;
 
+    console.log(`[VALIDATE_ID] Menerima permintaan untuk game: ${gameSlug}, userId: ${userId}, zoneId: ${zoneId}`);
+
     if (!gameSlug || !userId) {
         return res.status(400).json({ error: 'Parameter gameSlug dan userId dibutuhkan.' });
     }
 
-    // Ambil kredensial dari environment variables
     const merchantId = process.env.APIGAMES_MERCHANT_ID;
     const secretKey = process.env.APIGAMES_SECRET_KEY;
 
@@ -1649,46 +1650,46 @@ app.post('/api/validate-user-id', async (req, res) => {
     const gameCodeMap = {
         'mobile-legends': 'mobilelegend',
         'free-fire': 'freefire',
-        // Tambahkan game lain yang didukung ApiGames.id di sini jika perlu
     };
     const gameCode = gameCodeMap[gameSlug];
 
-    // Jika game tidak ada di map, artinya tidak didukung untuk validasi
+    // Jika game tidak ada di map, anggap validasi tidak diperlukan dan langsung berhasil.
     if (!gameCode) {
-        // Untuk game yang tidak divalidasi, kita bisa langsung kirim respons sukses palsu
-        // agar alur di frontend tidak terhenti.
+        console.log(`[VALIDATE_ID] Game slug "${gameSlug}" tidak memerlukan validasi eksternal. Melewati.`);
         return res.json({ nickname: `Player: ${userId}` });
     }
-    
-    // Gabungkan userID dan zoneID HANYA untuk Mobile Legends
-    let requestUserId = userId;
+
+    let requestUserId = userId.trim(); // Membersihkan spasi di awal/akhir User ID
+
+    // Logika khusus untuk Mobile Legends
     if (gameCode === 'mobilelegend') {
-        if (!zoneId) {
+        if (!zoneId || zoneId.trim() === '') {
             return res.status(400).json({ error: 'Zone ID dibutuhkan untuk Mobile Legends.' });
         }
-        requestUserId = `${userId}(${zoneId})`;
+        // Gabungkan ID dan Zone ID setelah dibersihkan dari spasi
+        requestUserId = `${userId.trim()}(${zoneId.trim()})`;
     }
 
     const signature = crypto.createHash('md5').update(merchantId + secretKey).digest('hex');
-    const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${requestUserId}&signature=${signature}`;
+    const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${encodeURIComponent(requestUserId)}&signature=${signature}`;
     
+    console.log(`[VALIDATE_ID] Memanggil URL ApiGames: ${apiUrl}`); // Log URL yang akan dipanggil
+
     try {
         const response = await axios.get(apiUrl);
 
         if (response.data && response.data.status === 1 && response.data.data && response.data.data.is_valid) {
-             // Kirim kembali nickname yang didapat dari API
+            console.log(`[VALIDATE_ID] Sukses dari ApiGames:`, response.data.data);
             res.json({ nickname: response.data.data.username });
         } else {
-            // Tangkap pesan error dari API jika ada, atau berikan pesan default
             const errorMessage = response.data.message || 'Nickname tidak ditemukan atau User ID tidak valid.';
+            console.warn(`[VALIDATE_ID] Gagal dari ApiGames:`, response.data);
             throw new Error(errorMessage);
         }
 
     } catch (error) {
         const errorMessageFromServer = error.response ? error.response.data.message : error.message;
-        console.error(`Error dari ApiGames untuk game ${gameCode} dengan user ID ${requestUserId}:`, errorMessageFromServer || (error.response ? error.response.data : "Tidak ada detail error"));
-        
-        // Kirim pesan error yang jelas ke frontend
+        console.error(`[VALIDATE_ID] Error memanggil ApiGames untuk ${requestUserId}:`, errorMessageFromServer || (error.response ? error.response.data : "Tidak ada detail error"));
         res.status(404).json({ error: errorMessageFromServer || 'User ID tidak ditemukan atau terjadi kesalahan.' });
     }
 });
