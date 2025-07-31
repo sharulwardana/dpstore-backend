@@ -1649,30 +1649,34 @@ app.post('/api/validate-user-id', async (req, res) => {
     const gameCodeMap = {
         'mobile-legends': 'mobilelegend',
         'free-fire': 'freefire',
+        // Tambahkan game lain yang didukung ApiGames.id di sini jika perlu
     };
     const gameCode = gameCodeMap[gameSlug];
 
+    // Jika game tidak ada di map, artinya tidak didukung untuk validasi
     if (!gameCode) {
-        return res.status(404).json({ error: `Game '${gameSlug}' tidak didukung untuk validasi saat ini.` });
+        // Untuk game yang tidak divalidasi, kita bisa langsung kirim respons sukses palsu
+        // agar alur di frontend tidak terhenti.
+        return res.json({ nickname: `Player: ${userId}` });
     }
     
-    // Gabungkan userID dan zoneID untuk Mobile Legends
+    // Gabungkan userID dan zoneID HANYA untuk Mobile Legends
     let requestUserId = userId;
-    // KHUSUS untuk Mobile Legends, format user_id menjadi "USERID(ZONEID)"
-    if (gameCode === 'mobilelegend' && zoneId) {
+    if (gameCode === 'mobilelegend') {
+        if (!zoneId) {
+            return res.status(400).json({ error: 'Zone ID dibutuhkan untuk Mobile Legends.' });
+        }
         requestUserId = `${userId}(${zoneId})`;
     }
 
     const signature = crypto.createHash('md5').update(merchantId + secretKey).digest('hex');
-
-    // URL ini sekarang akan mengirim format yang benar untuk semua game
     const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${requestUserId}&signature=${signature}`;
     
     try {
         const response = await axios.get(apiUrl);
 
-        // **PERBAIKAN 3: Penanganan respons yang lebih robust**
         if (response.data && response.data.status === 1 && response.data.data && response.data.data.is_valid) {
+             // Kirim kembali nickname yang didapat dari API
             res.json({ nickname: response.data.data.username });
         } else {
             // Tangkap pesan error dari API jika ada, atau berikan pesan default
@@ -1681,7 +1685,6 @@ app.post('/api/validate-user-id', async (req, res) => {
         }
 
     } catch (error) {
-        // Log error yang lebih informatif di server
         const errorMessageFromServer = error.response ? error.response.data.message : error.message;
         console.error(`Error dari ApiGames untuk game ${gameCode} dengan user ID ${requestUserId}:`, errorMessageFromServer || (error.response ? error.response.data : "Tidak ada detail error"));
         
