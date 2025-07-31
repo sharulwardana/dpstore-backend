@@ -108,8 +108,16 @@ async (accessToken, refreshToken, profile, done) => {
 
 // === LOGGING & MENGGUNAKAN RUTE ===
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
+  // Set the Access-Control-Allow-Origin header
+  // Replace 'https://zingy-zabaione-a27ed6.netlify.app' with your actual frontend origin
+  // Or use '*' to allow any origin (less secure)
+  res.setHeader('Access-Control-Allow-Origin', 'https://zingy-zabaione-a27ed6.netlify.app');
+
+  // Optionally set other CORS headers
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  next();
 });
 
 app.use('/api', publicRoutes); 
