@@ -74,7 +74,9 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use(express.json());
-
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
 // === KONFIGURASI SESSION & PASSPORT ===
 const pgSession = require('connect-pg-simple')(session);
 
@@ -136,12 +138,6 @@ async (accessToken, refreshToken, profile, done) => {
     }
 }));
 
-// === TAMBAHKAN BLOK INI UNTUK HEALTH CHECK ===
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-// === AKHIR BLOK TAMBAHAN ===
-
 // --- API Routes ---
 app.use('/api', publicRoutes); 
 app.use('/api/auth', authRoutes);
@@ -160,15 +156,6 @@ app.get('/auth/google/callback',
         res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
     }
 );
-
-// --- Health Check Endpoint ---
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
-    });
-});
 
 // --- Menyajikan File Statis dari Frontend ---
 const frontendPath = path.join(__dirname, '../Dua Putra');
