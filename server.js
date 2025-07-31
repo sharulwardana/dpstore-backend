@@ -56,16 +56,8 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Izinkan request tanpa origin (seperti Postman atau mobile apps)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.error('Origin tidak diizinkan oleh CORS:', origin);
-      callback(new Error('Tidak diizinkan oleh CORS policy'));
-    }
-  },
-  credentials: true, // Penting untuk mengizinkan pengiriman cookie/sesi
+  origin: '*', // Izinkan semua origin untuk sementara
+  credentials: true,
   optionsSuccessStatus: 200
 };
 
