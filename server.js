@@ -1,5 +1,7 @@
 // File: Project/dpstore-backend/server.js
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
 
 // Trigger redeploy <-- TAMBAHKAN BARIS INI
 
