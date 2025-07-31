@@ -3,8 +3,6 @@ if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
-// Trigger redeploy <-- TAMBAHKAN BARIS INI
-
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -30,41 +28,64 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Aktifkan baris ini dengan menghapus tanda //
+    ssl: { rejectUnauthorized: false }
 });
 
-// --- Middleware Global ---
+// --- CORS Configuration - DIPERBAIKI ---
 const corsOptions = {
-  origin: 'https://zingy-zabaione-a27ed6.netlify.app', // <-- LANGSUNG TULIS URL DI SINI
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  origin: function (origin, callback) {
+    // Daftar domain yang diizinkan
+    const allowedOrigins = [
+      'https://zingy-zabaione-a27ed6.netlify.app',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:5500'
+    ];
+    
+    // Izinkan requests tanpa origin (mobile apps, dll)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Origin tidak diizinkan oleh CORS:', origin);
+      callback(new Error('Tidak diizinkan oleh CORS policy'));
+    }
+  },
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 200
 };
 
+// Terapkan CORS
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Baris ini tetap penting
+
+// Handle preflight requests untuk semua routes
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
 // === KONFIGURASI SESSION & PASSPORT ===
-const pgSession = require('connect-pg-simple')(session); // Tambahkan baris ini
+const pgSession = require('connect-pg-simple')(session);
 
 app.set('trust proxy', 1);
 app.use(session({
-    store: new pgSession({ // Tambahkan 'store' ini
-        pool: pool, // Gunakan koneksi database yang sudah ada
-        tableName: 'user_sessions' // Nama tabel untuk menyimpan sesi
+    store: new pgSession({
+        pool: pool,
+        tableName: 'user_sessions'
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false, // Ubah menjadi false untuk best practice
+    saveUninitialized: false,
     cookie: { 
-        secure: true,
+        secure: process.env.NODE_ENV === 'production', // Hanya secure di production
         httpOnly: true,
-        sameSite: 'none',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // Opsional: Sesi berlaku 30 hari
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
     } 
 }));
+
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -84,7 +105,7 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`, // Menggunakan variabel dari .env
+    callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`,
     proxy: true
 },
 async (accessToken, refreshToken, profile, done) => {
@@ -106,6 +127,7 @@ async (accessToken, refreshToken, profile, done) => {
     }
 }));
 
+// --- API Routes ---
 app.use('/api', publicRoutes); 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -116,16 +138,36 @@ app.get('/auth/google',
 );
 
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: 'https://zingy-zabaione-a27ed6.netlify.app/login.html' }),
+    passport.authenticate('google', { 
+        failureRedirect: `${process.env.FRONTEND_URL}/login.html` 
+    }),
     (req, res) => {
-        res.redirect('https://zingy-zabaione-a27ed6.netlify.app/auth_callback.html');
+        res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
     }
 );
+
+// --- Health Check Endpoint ---
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
 
 // --- Menyajikan File Statis dari Frontend ---
 const frontendPath = path.join(__dirname, '../Dua Putra');
 app.use(express.static(frontendPath));
 
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('Global error handler:', err.stack);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server' });
+});
+
 app.listen(port, () => { 
     console.log(`Server backend berjalan di port ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
+    console.log(`Backend URL: ${process.env.BACKEND_URL}`);
 });
