@@ -1653,27 +1653,27 @@ app.post('/api/validate-user-id', async (req, res) => {
     };
     const gameCode = gameCodeMap[gameSlug];
 
-    // Jika game tidak ada di map, anggap validasi tidak diperlukan dan langsung berhasil.
     if (!gameCode) {
         console.log(`[VALIDATE_ID] Game slug "${gameSlug}" tidak memerlukan validasi eksternal. Melewati.`);
         return res.json({ nickname: `Player: ${userId}` });
     }
 
-    let requestUserId = userId.trim(); // Membersihkan spasi di awal/akhir User ID
+    let requestUserId = userId.trim();
 
-    // Logika khusus untuk Mobile Legends
     if (gameCode === 'mobilelegend') {
         if (!zoneId || zoneId.trim() === '') {
             return res.status(400).json({ error: 'Zone ID dibutuhkan untuk Mobile Legends.' });
         }
-        // Gabungkan ID dan Zone ID setelah dibersihkan dari spasi
         requestUserId = `${userId.trim()}(${zoneId.trim()})`;
     }
 
     const signature = crypto.createHash('md5').update(merchantId + secretKey).digest('hex');
+    
+    // --- PERBAIKAN DI SINI ---
+    // Menggunakan encodeURIComponent untuk memastikan karakter spesial di-encode
     const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${encodeURIComponent(requestUserId)}&signature=${signature}`;
     
-    console.log(`[VALIDATE_ID] Memanggil URL ApiGames: ${apiUrl}`); // Log URL yang akan dipanggil
+    console.log(`[VALIDATE_ID] Memanggil URL ApiGames: ${apiUrl}`);
 
     try {
         const response = await axios.get(apiUrl);
