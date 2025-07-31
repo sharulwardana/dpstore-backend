@@ -46,6 +46,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    max: 5, // <-- Batasi jumlah koneksi maksimum
+    idleTimeoutMillis: 30000, // Tutup koneksi yang menganggur setelah 30 detik
+    connectionTimeoutMillis: 5000, // Batas waktu koneksi 5 detik
 });
 
 // --- CORS Configuration - DIPERBAIKI ---
