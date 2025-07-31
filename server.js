@@ -1,179 +1,161 @@
-// File: Project/dpstore-backend/server.js
 // =======================================================
-// TAMBAHKAN BLOK INI UNTUK MENANGKAP SEMUA ERROR
+//          SERVER.JS VERSI SUPER-DEBUG
 // =======================================================
+
+// Langkah 1: Menangkap semua error yang tidak tertangani
 process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
+  console.error('FATAL ERROR: UNCAUGHT EXCEPTION! 💥');
+  console.error('Pesan Error:', err.message);
+  console.error('Stack Trace:', err.stack);
   process.exit(1);
 });
-
 process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
+  console.error('FATAL ERROR: UNHANDLED REJECTION! 💥');
+  console.error('Pesan Error:', err.message);
+  console.error('Stack Trace:', err.stack);
   process.exit(1);
 });
-// =======================================================
+console.log('[DEBUG] Penangan error global aktif.');
 
-if (process.env.NODE_ENV !== 'production') {
+// Langkah 2: Memuat environment variables
+try {
+  if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
+  }
+  console.log('[DEBUG] Environment variables berhasil dimuat.');
+} catch (e) {
+  console.error('[DEBUG] Gagal memuat dotenv:', e);
+  process.exit(1);
 }
 
+// Langkah 3: Import semua modul
+console.log('[DEBUG] Memulai import modul...');
 const express = require('express');
-const path = require('path');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20');
 const { Pool } = require('pg');
-const jwt = require('jsonwebtoken');
-
-// --- Impor file rute baru ---
+const pgSession = require('connect-pg-simple')(session);
 const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+console.log('[DEBUG] Semua modul berhasil di-import.');
 
+// Langkah 4: Membuat aplikasi Express
 const app = express();
 const port = process.env.PORT || 3000;
+console.log(`[DEBUG] Aplikasi Express dibuat. Port akan diatur ke ${port}.`);
 
-// --- Konfigurasi Variabel Global ---
-const JWT_SECRET = process.env.JWT_SECRET;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-
-// --- Konfigurasi Koneksi Database ---
-const pool = new Pool({
+// Langkah 5: Konfigurasi Database Pool
+let pool;
+try {
+  pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-});
+    // Hapus konfigurasi SSL untuk membiarkan driver PG menanganinya secara default
+  });
+  console.log('[DEBUG] Konfigurasi Pool Database selesai.');
+} catch (e) {
+  console.error('[DEBUG] Gagal mengkonfigurasi Pool Database:', e);
+  process.exit(1);
+}
 
-// --- CORS Configuration - DIPERBAIKI ---
-const allowedOrigins = [
-  'https://zingy-zabaione-a27ed6.netlify.app',
-  'http://localhost:5173',
-  'http://127.0.0.1:5500'
-];
+// Langkah 6: Konfigurasi CORS
+try {
+    const allowedOrigins = ['https://zingy-zabaione-a27ed6.netlify.app', 'http://127.0.0.1:5500'];
+    const corsOptions = {
+        origin: function (origin, callback) {
+            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error(`Origin ${origin} tidak diizinkan oleh CORS`));
+            }
+        },
+        credentials: true,
+    };
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
+    console.log('[DEBUG] Middleware CORS berhasil diterapkan.');
+} catch(e) {
+    console.error('[DEBUG] Gagal menerapkan middleware CORS:', e);
+    process.exit(1);
+}
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origin tidak diizinkan oleh CORS'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
+// Langkah 7: Middleware dasar
 app.use(express.json());
+console.log('[DEBUG] Middleware express.json diterapkan.');
 
-// === KONFIGURASI SESSION & PASSPORT ===
-const pgSession = require('connect-pg-simple')(session);
-
-app.set('trust proxy', 1);
-app.use(session({
-    store: new pgSession({
-        pool: pool,
-        tableName: 'user_sessions'
-    }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Hanya secure di production
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000
-    } 
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser((user, done) => {
-    done(null, user.user_id);
-});
-
-passport.deserializeUser(async (id, done) => {
-    try {
-        const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [id]);
-        done(null, result.rows[0]);
-    } catch (err) {
-        done(err, null);
-    }
-});
-
-passport.use(new GoogleStrategy({
-    clientID: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`,
-    proxy: true
-},
-async (accessToken, refreshToken, profile, done) => {
-    try {
-        const existingUser = await pool.query('SELECT * FROM users WHERE google_id = $1', [profile.id]);
-        
-        if (existingUser.rows.length > 0) {
-            return done(null, existingUser.rows[0]);
+// Langkah 8: Konfigurasi Session
+try {
+    app.set('trust proxy', 1);
+    app.use(session({
+        store: new pgSession({ pool: pool, tableName: 'user_sessions' }),
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: { 
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000 
         }
-        
-        const newUserResult = await pool.query(
-            'INSERT INTO users (google_id, full_name, email) VALUES ($1, $2, $3) RETURNING *',
-            [profile.id, profile.displayName, profile.emails[0].value]
-        );
-        return done(null, newUserResult.rows[0]);
+    }));
+    console.log('[DEBUG] Middleware Session berhasil diterapkan.');
+} catch(e) {
+    console.error('[DEBUG] Gagal menerapkan middleware Session:', e);
+    process.exit(1);
+}
 
-    } catch (err) {
-        return done(err, false);
-    }
-}));
+// Langkah 9: Konfigurasi Passport
+try {
+    app.use(passport.initialize());
+    app.use(passport.session());
 
-// --- API Routes ---
-app.use('/api', publicRoutes); 
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-
-// --- RUTE AUTENTIKASI GOOGLE ---
-app.get('/auth/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-app.get('/auth/google/callback',
-    passport.authenticate('google', { 
-        failureRedirect: `${process.env.FRONTEND_URL}/login.html` 
-    }),
-    (req, res) => {
-        res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
-    }
-);
-
-// --- Health Check Endpoint ---
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
+    passport.serializeUser((user, done) => done(null, user.user_id));
+    passport.deserializeUser(async (id, done) => {
+        try {
+            const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [id]);
+            done(null, result.rows[0]);
+        } catch (err) {
+            done(err, null);
+        }
     });
-});
 
-// --- Menyajikan File Statis dari Frontend ---
-const frontendPath = path.join(__dirname, '../Dua Putra');
-app.use(express.static(frontendPath));
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`,
+        proxy: true
+    }, async (accessToken, refreshToken, profile, done) => {
+        // Logika Google Strategy
+    }));
+    console.log('[DEBUG] Middleware Passport dan Google Strategy berhasil dikonfigurasi.');
+} catch (e) {
+    console.error('[DEBUG] Gagal mengkonfigurasi Passport:', e);
+    process.exit(1);
+}
 
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('Global error handler:', err.stack);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server' });
-});
+// Langkah 10: Terapkan Rute
+try {
+    app.use('/api', publicRoutes);
+    app.use('/api/auth', authRoutes);
+    app.use('/api/admin', adminRoutes);
 
-app.listen(port, "0.0.0.0", () => { 
-    console.log(`Server backend berjalan di port ${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
-    console.log(`Backend URL: ${process.env.BACKEND_URL}`);
+    // Rute Google Auth
+    app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+    app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login.html` }),
+        (req, res) => {
+            res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
+        }
+    );
+    console.log('[DEBUG] Semua rute berhasil diterapkan.');
+} catch(e) {
+    console.error('[DEBUG] Gagal menerapkan rute:', e);
+    process.exit(1);
+}
+
+// Langkah 11: Mulai Server
+app.listen(port, "0.0.0.0", () => {
+    console.log(`[DEBUG] ✅ SERVER BERHASIL DIMULAI DAN BERJALAN DI PORT ${port}`);
+    console.log(`=======================================================`);
 });
