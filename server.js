@@ -1,4 +1,22 @@
 // File: Project/dpstore-backend/server.js
+// =======================================================
+// TAMBAHKAN BLOK INI UNTUK MENANGKAP SEMUA ERROR
+// =======================================================
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+// =======================================================
+
 if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
@@ -28,7 +46,6 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
 });
 
 // --- CORS Configuration - DIPERBAIKI ---
