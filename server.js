@@ -35,21 +35,7 @@ const pool = new Pool({
 
 // --- Middleware Global ---
 const corsOptions = {
-  origin: function (origin, callback) {
-    // --- TAMBAHKAN BLOK INI UNTUK DEBUGGING ---
-    console.log('--- PEMERIKSAAN CORS ---');
-    console.log('Origin Request:', origin);
-    console.log('Origin Diizinkan (dari Variabel):', process.env.FRONTEND_URL);
-    // --- AKHIR BLOK DEBUGGING ---
-
-    if (!origin || origin === process.env.FRONTEND_URL) {
-      console.log('Status CORS: Diizinkan'); // Tambahan log
-      callback(null, true);
-    } else {
-      console.log('Status CORS: Ditolak'); // Tambahan log
-      callback(new Error('Domain ini tidak diizinkan oleh CORS'));
-    }
-  },
+  origin: 'https://zingy-zabaione-a27ed6.netlify.app', // <-- LANGSUNG TULIS URL DI SINI
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204
