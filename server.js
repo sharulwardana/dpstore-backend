@@ -33,7 +33,7 @@ const pool = new Pool({
 
 // --- Middleware Global ---
 const corsOptions = {
-  origin: 'https://zingy-zabaione-a27ed6.netlify.app',
+  origin: process.env.FRONTEND_URL, // Menggunakan variabel dari .env
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204
@@ -75,7 +75,7 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://dpstore-backend-production.up.railway.app/auth/google/callback",
+    callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`, // Menggunakan variabel dari .env
     proxy: true
 },
 async (accessToken, refreshToken, profile, done) => {

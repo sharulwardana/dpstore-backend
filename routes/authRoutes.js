@@ -229,7 +229,7 @@ router.post('/forgot-password',
                 [token, tokenExpires, user.user_id]
             );
             
-            const resetUrl = `http://localhost:3000/reset_password.html?token=${token}`;
+            const resetUrl = `${process.env.FRONTEND_URL}/reset_password.html?token=${token}`; // Menggunakan variabel dari .env
             const emailSubject = 'Reset Kata Sandi Akun DPStore Anda';
             const emailHTML = `
             <h1>Halo ${user.full_name},</h1>
