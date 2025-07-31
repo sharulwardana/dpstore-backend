@@ -53,15 +53,22 @@ app.options('*', cors(corsOptions)); // Baris ini tetap penting
 app.use(express.json());
 
 // === KONFIGURASI SESSION & PASSPORT ===
+const pgSession = require('connect-pg-simple')(session); // Tambahkan baris ini
+
 app.set('trust proxy', 1);
 app.use(session({
+    store: new pgSession({ // Tambahkan 'store' ini
+        pool: pool, // Gunakan koneksi database yang sudah ada
+        tableName: 'user_sessions' // Nama tabel untuk menyimpan sesi
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false, // Ubah menjadi false untuk best practice
     cookie: { 
         secure: true,
         httpOnly: true,
-        sameSite: 'none'
+        sameSite: 'none',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // Opsional: Sesi berlaku 30 hari
     } 
 }));
 app.use(passport.initialize());
