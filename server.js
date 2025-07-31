@@ -30,10 +30,16 @@ const pool = new Pool({
 });
 
 // --- Middleware Global ---
-app.use(cors({
-    origin: 'https://zingy-zabaione-a27ed6.netlify.app',
-    credentials: true
-}));
+const corsOptions = {
+  origin: 'https://zingy-zabaione-a27ed6.netlify.app',
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Menangani pre-flight requests untuk semua rute
+
 app.use(express.json());
 
 // === KONFIGURASI SESSION & PASSPORT ===
