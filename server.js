@@ -159,7 +159,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Terjadi kesalahan pada server' });
 });
 
-app.listen(port, () => { 
+app.listen(port, "0.0.0.0", () => { 
     console.log(`Server backend berjalan di port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
