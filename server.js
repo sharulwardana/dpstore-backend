@@ -1648,7 +1648,7 @@ app.post('/api/validate-user-id', async (req, res) => {
     }
 
     const gameCodeMap = {
-        'mobile-legends': 'mobilelegend',
+        'mobile-legends': 'mobilelegends',
         'free-fire': 'freefire',
     };
     const gameCode = gameCodeMap[gameSlug];
