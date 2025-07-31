@@ -33,21 +33,24 @@ const pool = new Pool({
 
 // --- CORS Configuration - DIPERBAIKI ---
 const allowedOrigins = [
-  'https://zingy-zabaione-a27ed6.netlify.app', // URL Netlify Anda
-  'http://localhost:5173',                      // Untuk development lokal
-  'http://127.0.0.1:5500'                     // Untuk "Open with Live Server"
+  'https://zingy-zabaione-a27ed6.netlify.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5500'
 ];
 
 const corsOptions = {
-  origin: '*', // Izinkan semua origin untuk sementara
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origin tidak diizinkan oleh CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
 
-// Terapkan CORS
 app.use(cors(corsOptions));
-
-// Handle preflight requests untuk semua routes
 app.options('*', cors(corsOptions));
 
 app.use(express.json());
