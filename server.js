@@ -131,6 +131,6 @@ app.get('/auth/google/callback',
 const frontendPath = path.join(__dirname, '../Dua Putra');
 app.use(express.static(frontendPath));
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => { // <-- TAMBAHKAN "0.0.0.0" DI SINI
     console.log(`Server backend berjalan di port ${port}`);
 });
