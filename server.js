@@ -32,29 +32,23 @@ const pool = new Pool({
 });
 
 // --- CORS Configuration - DIPERBAIKI ---
+const allowedOrigins = [
+  'https://zingy-zabaione-a27ed6.netlify.app', // URL Netlify Anda
+  'http://localhost:5173',                      // Untuk development lokal
+  'http://127.0.0.1:5500'                     // Untuk "Open with Live Server"
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Daftar domain yang diizinkan
-    const allowedOrigins = [
-      'https://zingy-zabaione-a27ed6.netlify.app',
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:5500'
-    ];
-    
-    // Izinkan requests tanpa origin (mobile apps, dll)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Izinkan request tanpa origin (seperti Postman atau mobile apps)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('Origin tidak diizinkan oleh CORS:', origin);
+      console.error('Origin tidak diizinkan oleh CORS:', origin);
       callback(new Error('Tidak diizinkan oleh CORS policy'));
     }
   },
-  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true,
+  credentials: true, // Penting untuk mengizinkan pengiriman cookie/sesi
   optionsSuccessStatus: 200
 };
 
