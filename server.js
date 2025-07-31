@@ -34,11 +34,17 @@ const pool = new Pool({
 // --- Middleware Global ---
 const corsOptions = {
   origin: function (origin, callback) {
-    // Izinkan permintaan jika origin-nya cocok dengan FRONTEND_URL
-    // atau jika tidak ada origin (misalnya dari aplikasi seperti Postman)
+    // --- TAMBAHKAN BLOK INI UNTUK DEBUGGING ---
+    console.log('--- PEMERIKSAAN CORS ---');
+    console.log('Origin Request:', origin);
+    console.log('Origin Diizinkan (dari Variabel):', process.env.FRONTEND_URL);
+    // --- AKHIR BLOK DEBUGGING ---
+
     if (!origin || origin === process.env.FRONTEND_URL) {
+      console.log('Status CORS: Diizinkan'); // Tambahan log
       callback(null, true);
     } else {
+      console.log('Status CORS: Ditolak'); // Tambahan log
       callback(new Error('Domain ini tidak diizinkan oleh CORS'));
     }
   },
