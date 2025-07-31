@@ -7,7 +7,10 @@ const { body, validationResult } = require('express-validator');
 const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
 // --- Fungsi Helper Pengiriman Email --- (Disalin dari server.js)
 const nodemailer = require('nodemailer');

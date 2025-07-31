@@ -9,7 +9,10 @@ const { body, param, validationResult } = require('express-validator');
 const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // --- Fungsi Helper Pengiriman Email ---
