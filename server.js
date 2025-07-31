@@ -1657,15 +1657,13 @@ app.post('/api/validate-user-id', async (req, res) => {
     }
     
     // Gabungkan userID dan zoneID untuk Mobile Legends
+    let requestUserId = userId;
+    if (gameCode === 'mobilelegend' && zoneId) {
+        requestUserId = `${userId}(${zoneId})`;
+    }
+    
     const signature = crypto.createHash('md5').update(merchantId + secretKey).digest('hex');
-
-// Buat URL dasar
-let apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${userId}&signature=${signature}`;
-
-// Jika ini Mobile Legends dan ada Zone ID, tambahkan sebagai parameter terpisah
-if (gameCode === 'mobilelegend' && zoneId) {
-    apiUrl += `&zone_id=${zoneId}`;
-}
+    const apiUrl = `https://v1.apigames.id/merchant/${merchantId}/cek-username/${gameCode}?user_id=${requestUserId}&signature=${signature}`;
     
     try {
         const response = await axios.get(apiUrl);
