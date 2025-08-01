@@ -54,6 +54,23 @@ const pool = new Pool({
     connectionTimeoutMillis: 5000,
 });
 
+// =======================================================
+// === TAMBAHKAN BLOK DEBUGGING INI UNTUK MENGUJI KONEKSI ===
+// =======================================================
+async function testDbConnection() {
+  try {
+    const client = await pool.connect();
+    console.log('✅ Koneksi ke database BERHASIL.');
+    client.release();
+  } catch (err) {
+    console.error('❌ GAGAL terhubung ke database:', err.stack);
+    process.exit(1); // Matikan paksa jika koneksi gagal agar error jelas terlihat
+  }
+}
+
+testDbConnection();
+// =======================================================
+
 // --- CORS Configuration - DIPERBAIKI ---
 const allowedOrigins = [
   'https://zingy-zabaione-a27ed6.netlify.app',
