@@ -3,22 +3,22 @@
 // BLOK PENANGANAN ERROR GLOBAL
 // =======================================================
 process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
-  process.exit(1);
+    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+    console.error(err.name, err.message);
+    console.error(err.stack);
+    process.exit(1);
 });
 
 process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
-  process.exit(1);
+    console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+    console.error(err.name, err.message);
+    console.error(err.stack);
+    process.exit(1);
 });
 // =======================================================
 
 if (process.env.NODE_ENV !== 'production') {
-    require('dotenv').config();
+    require('dotenv').config();
 }
 
 const express = require('express');
@@ -45,49 +45,49 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 // --- Konfigurasi Koneksi Database ---
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    },
-    max: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    },
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
 });
 
 // =======================================================
 // === BLOK DEBUGGING UNTUK MENGUJI KONEKSI ===
 // =======================================================
 async function testDbConnection() {
-  try {
-    const client = await pool.connect();
-    console.log('✅ Koneksi ke database BERHASIL.');
-    client.release();
-  } catch (err) {
-    console.error('❌ GAGAL terhubung ke database:', err.stack);
-    process.exit(1); // Matikan paksa jika koneksi gagal agar error jelas terlihat
-  }
-}
+    try {
+        const client = await pool.connect();
+        console.log('✅ Koneksi ke database BERHASIL.');
+        client.release();
+    } catch (err) {
+        console.error('❌ GAGAL terhubung ke database:', err.stack);
+        process.exit(1); // Matikan paksa jika koneksi gagal agar error jelas terlihat
+        }
+    }
 
 testDbConnection();
 // =======================================================
 
 // --- CORS Configuration ---
 const allowedOrigins = [
-  'https://zingy-zabaione-a27ed6.netlify.app',
-  'http://localhost:5173',
-  'http://127.0.0.1:5500'
+    'https://zingy-zabaione-a27ed6.netlify.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5500'
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origin tidak diizinkan oleh CORS'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Origin tidak diizinkan oleh CORS'));
+        }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -95,7 +95,7 @@ app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    res.status(200).send('OK');
 });
 
 // --- API Routes ---
@@ -103,6 +103,7 @@ app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
+/* NONAKTIFKAN KEMBALI RUTE INI
 // --- RUTE AUTENTIKASI GOOGLE ---
 app.get('/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -116,6 +117,7 @@ app.get('/auth/google/callback',
         res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
     }
 );
+*/
 
 /*
 // =======================================================
@@ -191,13 +193,13 @@ async (accessToken, refreshToken, profile, done) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-    console.error('Global error handler:', err.stack);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server' });
+    console.error('Global error handler:', err.stack);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server' });
 });
 
 app.listen(port, "0.0.0.0", () => { 
-    console.log(`Server backend berjalan di port ${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
-    console.log(`Backend URL: ${process.env.BACKEND_URL}`);
+    console.log(`Server backend berjalan di port ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
+    console.log(`Backend URL: ${process.env.BACKEND_URL}`);
 });
