@@ -31,9 +31,9 @@ const { Pool } = require('pg');
 // const jwt = require('jsonwebtoken'); // NONAKTIFKAN
 
 // --- Impor file rute baru ---
-// const publicRoutes = require('./routes/publicRoutes'); // NONAKTIFKAN
-// const authRoutes = require('./routes/authRoutes'); // NONAKTIFKAN
-// const adminRoutes = require('./routes/adminRoutes'); // NONAKTIFKAN
+const publicRoutes = require('./routes/publicRoutes');
+const authRoutes = require('./routes/authRoutes'); 
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -98,6 +98,25 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
 
+// --- API Routes ---
+app.use('/api', publicRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+
+// --- RUTE AUTENTIKASI GOOGLE ---
+app.get('/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+    passport.authenticate('google', { 
+        failureRedirect: `${process.env.FRONTEND_URL}/login.html` 
+    }),
+    (req, res) => {
+        res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
+    }
+);
+
 /*
 // =======================================================
 // SEMUA KODE BERISIKO DI BAWAH INI DINONAKTIFKAN SEMENTARA
@@ -160,27 +179,7 @@ async (accessToken, refreshToken, profile, done) => {
     } catch (err) {
         return done(err, false);
     }
-}));
-
-// --- API Routes ---
-app.use('/api', publicRoutes); 
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-
-// --- RUTE AUTENTIKASI GOOGLE ---
-app.get('/auth/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-app.get('/auth/google/callback',
-    passport.authenticate('google', { 
-        failureRedirect: `${process.env.FRONTEND_URL}/login.html` 
-    }),
-    (req, res) => {
-        res.redirect(`${process.env.FRONTEND_URL}/auth_callback.html`);
-    }
-);
-*/
+})); */
 
 // =======================================================
 // KODE AKHIR SERVER
