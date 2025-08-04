@@ -56,6 +56,8 @@ app.use((req, res, next) => {
 });
 
 // --- Middleware ---
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // --- API Routes ---
