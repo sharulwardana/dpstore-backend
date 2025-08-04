@@ -1,6 +1,5 @@
 // File: Project/dpstore-backend/routes/authRoutes.js
 const express = require('express');
-const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -8,15 +7,15 @@ const nodemailer = require('nodemailer');
 const { body, param, validationResult } = require('express-validator');
 const authMiddleware = require('../middleware/authMiddleware');
 
-const router = express.Router();
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-const JWT_SECRET = process.env.JWT_SECRET;
+// KODE LAMA DIHAPUS: const pool = new Pool(...)
 
-// --- Fungsi Helper Pengiriman Email ---
-const transporter = nodemailer.createTransport({
+// Bungkus semua rute dalam sebuah fungsi yang menerima 'pool'
+module.exports = function(pool) {
+    const router = express.Router();
+    const JWT_SECRET = process.env.JWT_SECRET;
+
+    // --- Fungsi Helper Pengiriman Email --- (Kode ini tetap sama)
+    const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
@@ -360,4 +359,6 @@ router.get('/transactions/me', authMiddleware, requireLogin, async (req, res) =>
     }
 });
 
-module.exports = router;
+// KEMBALIKAN ROUTER DI AKHIR FUNGSI
+    return router;
+};

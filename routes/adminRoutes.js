@@ -1,69 +1,68 @@
 // File: Project/dpstore-backend/routes/adminRoutes.js
 const express = require('express');
-const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, param, validationResult } = require('express-validator');
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 
-const router = express.Router();
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-const JWT_SECRET = process.env.JWT_SECRET;
+// KODE LAMA DIHAPUS: const pool = new Pool(...)
 
-// Rute login admin tidak memerlukan middleware
-router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-    const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+// Bungkus semua rute dalam sebuah fungsi yang menerima 'pool'
+module.exports = function(pool) {
+    const router = express.Router();
+    const JWT_SECRET = process.env.JWT_SECRET;
 
-    try {
-        if (username !== ADMIN_USERNAME) {
-            return res.status(401).json({ error: 'Username atau password salah' });
+    // Rute login admin tidak memerlukan middleware
+    router.post('/login', async (req, res) => {
+        const { username, password } = req.body;
+        const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+        const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+
+        try {
+            if (username !== ADMIN_USERNAME) {
+                return res.status(401).json({ error: 'Username atau password salah' });
+            }
+            const isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Username atau password salah' });
+            }
+            const payload = { user: { isAdmin: true, username: ADMIN_USERNAME } };
+            const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+            res.json({ token });
+        } catch (error) {
+            console.error('Error saat login admin:', error);
+            res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
         }
-        const isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Username atau password salah' });
+    });
+
+    // Gunakan middleware untuk semua rute di bawah ini
+    router.use(adminAuthMiddleware);
+
+    // === RUTE-RUTE ADMIN ===
+
+    router.get('/dashboard-stats', async (req, res) => {
+        try {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const incomeTodayResult = await pool.query("SELECT SUM(total_price) as total FROM transactions WHERE status = 'SUCCESS' AND created_at >= $1", [todayStart]);
+            const transactionsTodayResult = await pool.query("SELECT COUNT(transaction_id) as count FROM transactions WHERE created_at >= $1", [todayStart]);
+            const newUsersTodayResult = await pool.query("SELECT COUNT(user_id) as count FROM users WHERE created_at >= $1", [todayStart]);
+            
+            const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+            const transactionsThisMonthResult = await pool.query("SELECT COUNT(transaction_id) as count FROM transactions WHERE created_at >= $1", [monthStart]);
+
+            res.json({
+                incomeToday: incomeTodayResult.rows[0].total || 0,
+                transactionsToday: transactionsTodayResult.rows[0].count || 0,
+                newUsersToday: newUsersTodayResult.rows[0].count || 0,
+                transactionsThisMonth: transactionsThisMonthResult.rows[0].count || 0
+            });
+        } catch (err) {
+            console.error('[ADMIN] Error saat mengambil statistik dashboard:', err.stack);
+            res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
         }
-        const payload = { user: { isAdmin: true, username: ADMIN_USERNAME } };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token });
-    } catch (error) {
-        console.error('Error saat login admin:', error);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
-    }
-});
-
-// Gunakan middleware untuk semua rute di bawah ini
-router.use(adminAuthMiddleware);
-
-// === RUTE-RUTE ADMIN ===
-
-router.get('/dashboard-stats', async (req, res) => {
-    try {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        const incomeTodayResult = await pool.query("SELECT SUM(total_price) as total FROM transactions WHERE status = 'SUCCESS' AND created_at >= $1", [todayStart]);
-        const transactionsTodayResult = await pool.query("SELECT COUNT(transaction_id) as count FROM transactions WHERE created_at >= $1", [todayStart]);
-        const newUsersTodayResult = await pool.query("SELECT COUNT(user_id) as count FROM users WHERE created_at >= $1", [todayStart]);
-        
-        const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-        const transactionsThisMonthResult = await pool.query("SELECT COUNT(transaction_id) as count FROM transactions WHERE created_at >= $1", [monthStart]);
-
-        res.json({
-            incomeToday: incomeTodayResult.rows[0].total || 0,
-            transactionsToday: transactionsTodayResult.rows[0].count || 0,
-            newUsersToday: newUsersTodayResult.rows[0].count || 0,
-            transactionsThisMonth: transactionsThisMonthResult.rows[0].count || 0
-        });
-    } catch (err) {
-        console.error('[ADMIN] Error saat mengambil statistik dashboard:', err.stack);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
-    }
-});
+    });
 
 // --- Rute Promosi ---
 router.get('/promotions', async (req, res) => {
@@ -493,4 +492,6 @@ router.delete('/products/:productId', [param('productId').isInt()], async (req, 
     }
 });
 
-module.exports = router;
+// KEMBALIKAN ROUTER DI AKHIR FUNGSI
+    return router;
+};
