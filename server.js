@@ -1,19 +1,30 @@
 // File: Project/dpstore-backend/server.js
 
-// ... (Global Error Handling tetap sama)
+// Global Error Handling
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...', err);
+    process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('UNHANDLED REJECTION! 💥 Shutting down...', err);
+    process.exit(1);
+});
 
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors');
 const { Pool } = require('pg');
-
 const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// ====================================================================
+// === TAMBAHKAN BARIS INI UNTUK MEMPERCAYAI PROXY DARI RAILWAY ===
+app.set('trust proxy', 1);
+// ====================================================================
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -44,6 +55,7 @@ const allowedOrigins = [
     'http://127.0.0.1:5500'
 ];
 
+// Middleware manual untuk CORS
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
@@ -52,6 +64,12 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.header('Access-Control-Allow-Credentials', true);
+    
+    // Tangani preflight request
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+
     return next();
 });
 
