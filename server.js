@@ -15,6 +15,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const session = require('express-session'); // <-- TAMBAHKAN
+const PgStore = require('connect-pg-simple')(session); // <-- TAMBAHKAN
 
 // --- Create a SINGLE Database Pool ---
 const pool = new Pool({
@@ -85,6 +87,22 @@ app.options('*', cors(corsOptions));
 
 // --- Middleware ---
 app.use(express.json());
+
+// --- Session Middleware ---  <-- TAMBAHKAN BLOK INI
+app.use(session({
+    store: new PgStore({
+        pool: pool,
+        tableName: 'user_sessions'
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 hari
+    }
+}));
 
 // --- API Routes ---
 app.get('/health', (req, res) => res.status(200).send('Server is healthy!'));
