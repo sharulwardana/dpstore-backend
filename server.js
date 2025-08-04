@@ -37,19 +37,29 @@ const port = process.env.PORT || 3000;
 // Trust the proxy on Railway
 app.set('trust proxy', 1);
 
-// Test DB connection on startup
-async function testDbConnection() {
-    let client;
-    try {
-        client = await pool.connect();
-        console.log('✅ Database connection successful.');
-    } catch (err) {
-        console.error('❌ Database connection failed:', err.stack);
-        process.exit(1);
-    } finally {
-        if (client) client.release();
+// Ganti fungsi testDbConnection yang lama dengan yang ini
+async function testDbConnection(retries = 5) {
+    while (retries > 0) {
+        let client;
+        try {
+            client = await pool.connect();
+            console.log('✅ Database connection successful.');
+            if (client) client.release();
+            return; // Keluar dari fungsi jika berhasil
+        } catch (err) {
+            console.error('❌ Database connection failed, retrying...', err.message);
+            retries--;
+            if (retries === 0) {
+                console.error('❌ Could not connect to the database after several retries. Exiting.');
+                process.exit(1); // Tetap matikan jika gagal setelah beberapa kali coba
+            }
+            // Tunggu 5 detik sebelum mencoba lagi
+            await new Promise(res => setTimeout(res, 5000));
+        }
     }
 }
+
+// Panggil fungsi seperti biasa
 testDbConnection();
 
 // --- CORS Configuration ---
