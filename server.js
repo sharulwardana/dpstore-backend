@@ -89,6 +89,8 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong on the server!' });
 });
 
-app.listen(port, () => {
-    console.log(`🚀 Server running on port ${port}`);
+const HOST = '0.0.0.0';
+
+app.listen(port, HOST, () => {
+    console.log(`🚀 Server running on http://${HOST}:${port}`);
 });
