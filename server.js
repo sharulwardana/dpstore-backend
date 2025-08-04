@@ -13,7 +13,7 @@ process.on('unhandledRejection', (err) => {
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors'); // Pastikan 'cors' di-import
+const cors = require('cors'); // Make sure 'cors' is imported
 const { Pool } = require('pg');
 
 const publicRoutes = require('./routes/publicRoutes');
@@ -23,7 +23,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Tetap aktifkan ini, sangat penting untuk lingkungan di belakang proxy
+// This is crucial for Express to trust the proxy on Railway
 app.set('trust proxy', 1);
 
 const pool = new Pool({
@@ -48,7 +48,7 @@ async function testDbConnection() {
 }
 testDbConnection();
 
-// --- Konfigurasi CORS Baru dan Final ---
+// --- Final CORS Configuration ---
 const allowedOrigins = [
     'https://zingy-zabaione-a27ed6.netlify.app',
     'http://localhost:5173',
@@ -57,26 +57,23 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: (origin, callback) => {
-        // Log untuk debugging
-        console.log(`Request from origin: ${origin}`);
-        
-        // Izinkan jika origin ada di dalam daftar, atau jika request tidak memiliki origin (misal: dari Postman, curl)
+        // Allow requests if the origin is in our whitelist, or if there's no origin (e.g., server-to-server, Postman)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('This origin is not allowed by CORS'));
         }
     },
-    credentials: true, // Izinkan pengiriman cookie
+    credentials: true,
 };
 
-// Gunakan middleware cors dengan konfigurasi di atas
+// Use the cors middleware with our options
 app.use(cors(corsOptions));
-// Pastikan pre-flight requests (OPTIONS) juga ditangani
+// Explicitly handle pre-flight (OPTIONS) requests
 app.options('*', cors(corsOptions));
 
 
-// --- Middleware Lainnya ---
+// --- Other Middleware ---
 app.use(express.json());
 
 
