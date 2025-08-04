@@ -13,7 +13,9 @@ process.on('unhandledRejection', (err) => {
 require('dotenv').config();
 
 const express = require('express');
+const cors = require('cors'); // Pastikan 'cors' di-import
 const { Pool } = require('pg');
+
 const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -21,10 +23,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ====================================================================
-// === TAMBAHKAN BARIS INI UNTUK MEMPERCAYAI PROXY DARI RAILWAY ===
+// Tetap aktifkan ini, sangat penting untuk lingkungan di belakang proxy
 app.set('trust proxy', 1);
-// ====================================================================
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -48,39 +48,44 @@ async function testDbConnection() {
 }
 testDbConnection();
 
-// --- CORS Configuration ---
+// --- Konfigurasi CORS Baru dan Final ---
 const allowedOrigins = [
     'https://zingy-zabaione-a27ed6.netlify.app',
     'http://localhost:5173',
     'http://127.0.0.1:5500'
 ];
 
-// Middleware manual untuk CORS
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', true);
-    
-    // Tangani preflight request
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Log untuk debugging
+        console.log(`Request from origin: ${origin}`);
+        
+        // Izinkan jika origin ada di dalam daftar, atau jika request tidak memiliki origin (misal: dari Postman, curl)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('This origin is not allowed by CORS'));
+        }
+    },
+    credentials: true, // Izinkan pengiriman cookie
+};
 
-    return next();
-});
+// Gunakan middleware cors dengan konfigurasi di atas
+app.use(cors(corsOptions));
+// Pastikan pre-flight requests (OPTIONS) juga ditangani
+app.options('*', cors(corsOptions));
 
-// --- Middleware ---
+
+// --- Middleware Lainnya ---
 app.use(express.json());
+
 
 // --- API Routes ---
 app.get('/health', (req, res) => res.status(200).send('Server is healthy!'));
 app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
