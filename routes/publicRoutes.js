@@ -1,50 +1,48 @@
-// File: Project/dpstore-backend/routes/publicRoutes.js
 const express = require('express');
-const { Pool } = require('pg');
 const crypto = require('crypto');
 const axios = require('axios');
 const { body, validationResult } = require('express-validator');
 const authMiddleware = require('../middleware/authMiddleware');
 
-const router = express.Router();
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
+// This function will now wrap your entire router
+module.exports = function(pool) {
+    const router = express.Router();
 
-// --- Fungsi Helper Pengiriman Email --- (Disalin dari server.js)
-const nodemailer = require('nodemailer');
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-});
-async function sendEmailNotification(to, subject, htmlContent) {
-    try {
-        await transporter.sendMail({
-            from: '"DPStore Notifikasi" <herualfatih36@gmail.com>',
-            to, subject, html: htmlContent
-        });
-        console.log('Email notifikasi terkirim ke %s', to);
-    } catch (error) {
-        console.error('Gagal mengirim email notifikasi ke %s:', to, error);
+    // --- Helper Functions (No Change) ---
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+    async function sendEmailNotification(to, subject, htmlContent) {
+        try {
+            await transporter.sendMail({
+                from: '"DPStore Notifikasi" <herualfatih36@gmail.com>',
+                to, subject, html: htmlContent
+            });
+            console.log('Email notifikasi terkirim ke %s', to);
+        } catch (error) {
+            console.error('Gagal mengirim email notifikasi ke %s:', to, error);
+        }
     }
-}
 
-// === RUTE-RUTE PUBLIK ===
+    // === RUTE-RUTE PUBLIK (No Change, just indented inside the function) ===
+    router.get('/games', async (req, res) => {
+        try {
+            const result = await pool.query(
+                'SELECT game_id, name, slug, image_url, category, header_promo_text, created_at FROM games WHERE is_active = TRUE ORDER BY created_at DESC'
+            );
+            res.json(result.rows);
+        } catch (err) {
+            console.error('Error saat mengambil data games:', err.stack);
+            res.status(500).json({ error: 'Terjadi kesalahan pada server saat mengambil games' });
+        }
+    });
 
-router.get('/games', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT game_id, name, slug, image_url, category, header_promo_text, created_at FROM games WHERE is_active = TRUE ORDER BY created_at DESC'
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Error saat mengambil data games:', err.stack);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server saat mengambil games' });
-    }
-});
+    // ... (All other routes like /games/search, /games/:slug, etc., remain exactly the same) ...
+    // Just ensure they are all within this new module.exports function wrapper.
 
-router.get('/games/search', async (req, res) => {
+    router.get('/games/search', async (req, res) => {
     const { q } = req.query; 
 
     if (!q || q.trim() === '') {
@@ -422,4 +420,5 @@ router.post('/transactions',
     }
 );
 
-module.exports = router;
+    return router;
+}

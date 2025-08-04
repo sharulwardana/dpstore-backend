@@ -13,19 +13,10 @@ process.on('unhandledRejection', (err) => {
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors'); // Make sure 'cors' is imported
+const cors = require('cors');
 const { Pool } = require('pg');
 
-const publicRoutes = require('./routes/publicRoutes');
-const authRoutes = require('./routes/authRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-
-const app = express();
-const port = process.env.PORT || 3000;
-
-// This is crucial for Express to trust the proxy on Railway
-app.set('trust proxy', 1);
-
+// --- Create a SINGLE Database Pool ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -34,6 +25,19 @@ const pool = new Pool({
     connectionTimeoutMillis: 10000,
 });
 
+// Import route files
+// Notice they are now functions that we will call with the 'pool'
+const publicRoutes = require('./routes/publicRoutes')(pool);
+const authRoutes = require('./routes/authRoutes')(pool);
+const adminRoutes = require('./routes/adminRoutes')(pool);
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Trust the proxy on Railway
+app.set('trust proxy', 1);
+
+// Test DB connection on startup
 async function testDbConnection() {
     let client;
     try {
@@ -48,7 +52,7 @@ async function testDbConnection() {
 }
 testDbConnection();
 
-// --- Final CORS Configuration ---
+// --- CORS Configuration ---
 const allowedOrigins = [
     'https://zingy-zabaione-a27ed6.netlify.app',
     'http://localhost:5173',
@@ -57,7 +61,6 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests if the origin is in our whitelist, or if there's no origin (e.g., server-to-server, Postman)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -67,22 +70,18 @@ const corsOptions = {
     credentials: true,
 };
 
-// Use the cors middleware with our options
 app.use(cors(corsOptions));
-// Explicitly handle pre-flight (OPTIONS) requests
 app.options('*', cors(corsOptions));
 
-
-// --- Other Middleware ---
+// --- Middleware ---
 app.use(express.json());
-
 
 // --- API Routes ---
 app.get('/health', (req, res) => res.status(200).send('Server is healthy!'));
+// Use the routers that have been initialized with the pool
 app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
