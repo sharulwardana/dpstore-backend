@@ -30,6 +30,7 @@ const pool = new Pool({
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    statement_timeout: 5000
 });
 
 // Import route files
