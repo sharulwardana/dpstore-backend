@@ -68,12 +68,17 @@ testDbConnection();
 const allowedOrigins = [
     'https://zingy-zabaione-a27ed6.netlify.app',
     'http://localhost:5173',
-    'http://127.0.0.1:5500'
+    'http://127.0.0.1:5500',
+    'https://dpstore-backend-production.up.railway.app'
 ];
 
 const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Izinkan request tanpa origin (seperti dari Postman atau mobile apps) dalam mode development
+        if (!origin && process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             callback(new Error('This origin is not allowed by CORS'));
