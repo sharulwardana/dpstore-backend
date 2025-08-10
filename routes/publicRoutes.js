@@ -28,13 +28,16 @@ module.exports = function(pool) {
 
     // === RUTE-RUTE PUBLIK (No Change, just indented inside the function) ===
     router.get('/games', async (req, res) => {
+        console.log('[LOG] Menerima permintaan untuk GET /api/games');
         try {
+            console.log('[LOG] Mencoba menjalankan kueri untuk mengambil semua game...');
             const result = await pool.query(
                 'SELECT game_id, name, slug, image_url, category, header_promo_text, created_at FROM games WHERE is_active = TRUE ORDER BY created_at DESC'
             );
+            console.log(`[LOG] Kueri game berhasil, ditemukan ${result.rows.length} game.`);
             res.json(result.rows);
         } catch (err) {
-            console.error('Error saat mengambil data games:', err.stack);
+            console.error('[ERROR] Gagal saat mengambil data games:', err.stack);
             res.status(500).json({ error: 'Terjadi kesalahan pada server saat mengambil games' });
         }
     });
@@ -123,11 +126,14 @@ router.get('/games/:slug', async (req, res) => {
 });
 
 router.get('/promotions', async (req, res) => {
+    console.log('[LOG] Menerima permintaan untuk GET /api/promotions');
     try {
+        console.log('[LOG] Mencoba menjalankan kueri untuk mengambil promosi...');
         const result = await pool.query('SELECT * FROM promotions WHERE is_active = TRUE ORDER BY created_at DESC');
+        console.log(`[LOG] Kueri promosi berhasil, ditemukan ${result.rows.length} promosi.`);
         res.json(result.rows);
     } catch (err) {
-        console.error('Error saat mengambil promosi:', err.stack);
+        console.error('[ERROR] Gagal saat mengambil promosi:', err.stack);
         res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
     }
 });
