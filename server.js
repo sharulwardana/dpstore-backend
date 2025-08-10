@@ -7,6 +7,8 @@ process.on('uncaughtException', (err) => {
 });
 process.on('unhandledRejection', (err) => {
     console.error('UNHANDLED REJECTION! 💥 Shutting down...', err);
+    // Di lingkungan produksi, server harus di-restart oleh manajer proses
+    // jadi kita akan exit di sini.
     process.exit(1);
 });
 
@@ -15,10 +17,16 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const session = require('express-session'); // <-- TAMBAHKAN
-const PgStore = require('connect-pg-simple')(session); // <-- TAMBAHKAN
+const session = require('express-session');
+const PgStore = require('connect-pg-simple')(session);
 
 // --- Create a SINGLE Database Pool ---
+// Pastikan variabel DATABASE_URL sudah terkonfigurasi di Railway
+if (!process.env.DATABASE_URL) {
+    console.error("FATAL ERROR: DATABASE_URL is not defined.");
+    process.exit(1);
+}
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -28,32 +36,27 @@ const pool = new Pool({
 });
 
 // Import route files
-// Notice they are now functions that we will call with the 'pool'
 const publicRoutes = require('./routes/publicRoutes')(pool);
 const authRoutes = require('./routes/authRoutes')(pool);
 const adminRoutes = require('./routes/adminRoutes')(pool);
 
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Trust the proxy on Railway
-app.set('trust proxy', 1);
-
-// Ganti fungsi testDbConnection yang lama dengan yang ini
+// Fungsi untuk mengetes koneksi database, sekarang lebih tangguh
 async function testDbConnection(retries = 5) {
     while (retries > 0) {
         let client;
         try {
+            console.log('Attempting to connect to the database...');
             client = await pool.connect();
             console.log('✅ Database connection successful.');
             if (client) client.release();
             return; // Keluar dari fungsi jika berhasil
         } catch (err) {
-            console.error('❌ Database connection failed, retrying...', err.message);
+            console.error(`❌ Database connection failed (retries left: ${retries - 1})...`, err.message);
             retries--;
             if (retries === 0) {
-                console.error('❌ Could not connect to the database after several retries. Exiting.');
-                process.exit(1); // Tetap matikan jika gagal setelah beberapa kali coba
+                 console.error('❌ Could not connect to the database after several retries. Exiting.');
+                 // Melempar error agar proses startup gagal total
+                 throw new Error('Could not connect to the database.');
             }
             // Tunggu 5 detik sebelum mencoba lagi
             await new Promise(res => setTimeout(res, 5000));
@@ -61,69 +64,78 @@ async function testDbConnection(retries = 5) {
     }
 }
 
-// Panggil fungsi seperti biasa
-testDbConnection();
+async function startServer() {
+    // 1. TUNGGU sampai koneksi database berhasil.
+    // Jika gagal, aplikasi akan berhenti berkat error yang dilempar oleh testDbConnection.
+    await testDbConnection();
+    console.log('Database is ready. Starting web server...');
 
-// --- CORS Configuration ---
-const allowedOrigins = [
-    'https://zingy-zabaione-a27ed6.netlify.app',
-    'http://localhost:5173',
-    'http://127.0.0.1:5500',
-    'https://dpstore-backend-production.up.railway.app'
-];
+    // 2. BARU jalankan server Express setelah database siap.
+    const app = express();
+    const port = process.env.PORT || 3000;
 
-const corsOptions = {
-    origin: (origin, callback) => {
-        // Izinkan request tanpa origin (seperti dari Postman atau mobile apps) dalam mode development
-        if (!origin && process.env.NODE_ENV !== 'production') {
-            return callback(null, true);
+    // Trust the proxy on Railway
+    app.set('trust proxy', 1);
+
+    // --- CORS Configuration ---
+    const allowedOrigins = [
+        'https://zingy-zabaione-a27ed6.netlify.app',
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+        'https://dpstore-backend-production.up.railway.app'
+    ];
+    const corsOptions = {
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(`Origin '${origin}' is not allowed by CORS`));
+            }
+        },
+        credentials: true,
+    };
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
+
+    // --- Middleware ---
+    app.use(express.json());
+
+    // --- Session Middleware ---
+    app.use(session({
+        store: new PgStore({
+            pool: pool,
+            tableName: 'user_sessions'
+        }),
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            maxAge: 24 * 60 * 60 * 1000 // 1 hari
         }
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('This origin is not allowed by CORS'));
-        }
-    },
-    credentials: true,
-};
+    }));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+    // --- API Routes ---
+    app.get('/health', (req, res) => res.status(200).send('Server is healthy!'));
+    app.use('/api', publicRoutes);
+    app.use('/api/auth', authRoutes);
+    app.use('/api/admin', adminRoutes);
 
-// --- Middleware ---
-app.use(express.json());
+    // --- Global Error Handler ---
+    app.use((err, req, res, next) => {
+        console.error('Global Error Handler:', err.stack);
+        res.status(500).json({ error: 'Something went wrong on the server!' });
+    });
 
-// --- Session Middleware ---  <-- TAMBAHKAN BLOK INI
-app.use(session({
-    store: new PgStore({
-        pool: pool,
-        tableName: 'user_sessions'
-    }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 1 hari
-    }
-}));
+    const HOST = '0.0.0.0';
+    app.listen(port, HOST, () => {
+        console.log(`🚀 Server running on http://${HOST}:${port}`);
+    });
+}
 
-// --- API Routes ---
-app.get('/health', (req, res) => res.status(200).send('Server is healthy!'));
-// Use the routers that have been initialized with the pool
-app.use('/api', publicRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-
-// --- Global Error Handler ---
-app.use((err, req, res, next) => {
-    console.error('Global Error Handler:', err.stack);
-    res.status(500).json({ error: 'Something went wrong on the server!' });
-});
-
-const HOST = '0.0.0.0';
-
-app.listen(port, HOST, () => {
-    console.log(`🚀 Server running on http://${HOST}:${port}`);
+// Jalankan fungsi startup
+startServer().catch(error => {
+    console.error("❌ Failed to start the server due to a critical error during initialization.", error);
+    process.exit(1);
 });
