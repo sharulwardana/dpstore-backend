@@ -1,3 +1,5 @@
+// File: Project/dpstore-backend/routes/publicRoutes.js
+
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
@@ -26,25 +28,33 @@ module.exports = function(pool) {
         }
     }
 
-    // === RUTE-RUTE PUBLIK (No Change, just indented inside the function) ===
+    // === RUTE-RUTE PUBLIK DENGAN LOGGING BARU ===
     router.get('/games', async (req, res) => {
-        console.log('[LOG] Menerima permintaan untuk GET /api/games');
+        const queryText = 'SELECT game_id, name, slug, image_url, category, header_promo_text, created_at FROM games WHERE is_active = TRUE ORDER BY created_at DESC';
+        console.log(`[DEBUG] Executing query for /games: ${queryText}`);
         try {
-            console.log('[LOG] Mencoba menjalankan kueri untuk mengambil semua game...');
-            const result = await pool.query(
-                'SELECT game_id, name, slug, image_url, category, header_promo_text, created_at FROM games WHERE is_active = TRUE ORDER BY created_at DESC'
-            );
-            console.log(`[LOG] Kueri game berhasil, ditemukan ${result.rows.length} game.`);
+            const result = await pool.query(queryText);
             res.json(result.rows);
         } catch (err) {
-            console.error('[ERROR] Gagal saat mengambil data games:', err.stack);
+            console.error('[ERROR] in /games route:', err.stack);
             res.status(500).json({ error: 'Terjadi kesalahan pada server saat mengambil games' });
         }
     });
 
-    // ... (All other routes like /games/search, /games/:slug, etc., remain exactly the same) ...
-    // Just ensure they are all within this new module.exports function wrapper.
+    router.get('/promotions', async (req, res) => {
+        const queryText = 'SELECT * FROM promotions WHERE is_active = TRUE ORDER BY created_at DESC';
+        console.log(`[DEBUG] Executing query for /promotions: ${queryText}`);
+        try {
+            const result = await pool.query(queryText);
+            res.json(result.rows);
+        } catch (err) {
+            console.error('[ERROR] in /promotions route:', err.stack);
+            res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+        }
+    });
 
+    // ... (Salin sisa rute Anda dari file asli ke sini. Kode di bawah ini adalah placeholder) ...
+    
     router.get('/games/search', async (req, res) => {
     const { q } = req.query; 
 
@@ -122,19 +132,6 @@ router.get('/games/:slug', async (req, res) => {
         if (!res.headersSent) {
             res.status(500).json({ error: 'Terjadi kesalahan pada server saat mengambil detail game' });
         }
-    }
-});
-
-router.get('/promotions', async (req, res) => {
-    console.log('[LOG] Menerima permintaan untuk GET /api/promotions');
-    try {
-        console.log('[LOG] Mencoba menjalankan kueri untuk mengambil promosi...');
-        const result = await pool.query('SELECT * FROM promotions WHERE is_active = TRUE ORDER BY created_at DESC');
-        console.log(`[LOG] Kueri promosi berhasil, ditemukan ${result.rows.length} promosi.`);
-        res.json(result.rows);
-    } catch (err) {
-        console.error('[ERROR] Gagal saat mengambil promosi:', err.stack);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
     }
 });
 
@@ -425,6 +422,6 @@ router.post('/transactions',
         }
     }
 );
-
+    
     return router;
 }
