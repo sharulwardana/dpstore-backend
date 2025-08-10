@@ -1,14 +1,13 @@
-// File: Project/dpstore-backend/server.js [DEBUG VERSION]
+// File: Project/dpstore-backend/server.js [ISOLATION MODE]
 
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 
-console.log("--- Starting Server in DEBUG MODE ---");
+console.log("--- Starting Server in ISOLATION MODE ---");
 
-// Cek variabel environment penting
-if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET) {
-    console.error("FATAL ERROR: Environment variables are not configured correctly in Railway.");
+if (!process.env.DATABASE_URL) {
+    console.error("FATAL ERROR: DATABASE_URL is not defined.");
     process.exit(1);
 }
 
@@ -17,12 +16,15 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// Kita tetap memuat file-file ini untuk memastikan tidak ada error saat require()
+console.log("Requiring route files...");
 const publicRoutes = require('./routes/publicRoutes')(pool);
 const authRoutes = require('./routes/authRoutes')(pool);
 const adminRoutes = require('./routes/adminRoutes')(pool);
+console.log("Route files required successfully.");
+
 
 async function startServer() {
-    // 1. Tes koneksi database
     try {
         const client = await pool.connect();
         console.log('✅ Database connection successful.');
@@ -32,41 +34,25 @@ async function startServer() {
         process.exit(1);
     }
 
-    // 2. Jalankan server Express
     const app = express();
     const port = process.env.PORT || 3000;
     const HOST = '0.0.0.0';
 
-    app.set('trust proxy', 1);
-
-    // --- MIDDLEWARE SEMENTARA DINONAKTIFKAN ---
-    // const cors = require('cors');
-    // const session = require('express-session');
-    // const PgStore = require('connect-pg-simple')(session);
-
-    app.use(express.json()); // Hanya ini yang kita aktifkan
-
-    // --- Rute API ---
-    // Rute healthcheck sederhana untuk Railway
+    // Rute healthcheck sederhana
     app.get('/health', (req, res) => {
-        console.log("Health check endpoint was hit.");
-        res.status(200).send('Server is healthy!');
+        console.log("Health check endpoint was hit. Server should stay alive now.");
+        res.status(200).send('Server is healthy and isolated!');
     });
     
-    // Kita tetap mendaftarkan rute, tapi mungkin tidak akan bisa diakses karena CORS nonaktif
-    app.use('/api', publicRoutes);
-    app.use('/api/auth', authRoutes);
-    app.use('/api/admin', adminRoutes);
+    // --- RUTE API SENGAJA DINONAKTIFKAN ---
+    // console.log("Registering API routes is SKIPPED in isolation mode.");
+    // app.use('/api', publicRoutes);
+    // app.use('/api/auth', authRoutes);
+    // app.use('/api/admin', adminRoutes);
     
-    // Global Error Handler
-    app.use((err, req, res, next) => {
-        console.error('GLOBAL ERROR HANDLER CAUGHT AN ERROR:', err.stack);
-        res.status(500).json({ error: 'Something went terribly wrong!' });
-    });
-
     app.listen(port, HOST, () => {
         console.log(`🚀 Server is LIVE and running on http://${HOST}:${port}`);
-        console.log("Now waiting to see if it stays running...");
+        console.log("Waiting to see if the container stops...");
     });
 }
 
