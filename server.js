@@ -145,32 +145,52 @@ async function startServer() {
             }
         }));
         console.log('✅ Session middleware configured');
-
-        // --- SIMPLE Health Check (NO DATABASE TEST) ---
-        app.get('/health', (req, res) => {
+        
+        app.get('/health', async (req, res) => {
+            const startTime = Date.now();
             console.log('🏥 Health check called from:', req.get('User-Agent') || 'unknown');
             console.log('🏥 Health check headers:', JSON.stringify(req.headers, null, 2));
             
             try {
-                const response = { 
-                    status: 'OK',
-                    message: 'Server is healthy',
-                    timestamp: new Date().toISOString(),
-                    uptime: Math.floor(process.uptime()) + 's'
-                };
-                
-                console.log('🏥 Sending health check response:', JSON.stringify(response, null, 2));
-                res.status(200).json(response);
-                console.log('🏥 Health check response sent successfully');
-                
-            } catch (error) {
-                console.error('🏥 Health check error:', error);
-                res.status(500).json({
-                    status: 'ERROR',
-                    error: error.message
-                });
-            }
-        });
+                const dbTestPromise = pool.query('SELECT NOW() as current_time');
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database timeout')), 5000)
+            );
+            
+            const dbResult = await Promise.race([dbTestPromise, timeoutPromise]);
+            const responseTime = Date.now() - startTime;
+            
+            const response = { 
+                status: 'healthy',
+                message: 'Server and database are healthy',
+                timestamp: new Date().toISOString(),
+                uptime: Math.floor(process.uptime()) + 's',
+                responseTime: responseTime + 'ms',
+                database: 'connected',
+                memory: {
+                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+                }
+            };
+            
+            console.log('🏥 Sending health check response:', JSON.stringify(response, null, 2));
+            res.status(200).json(response);
+            console.log('🏥 Health check response sent successfully');
+        
+        } catch (error) {
+            console.error('🏥 Health check error:', error);
+            const responseTime = Date.now() - startTime;
+            
+            res.status(500).json({
+                status: 'unhealthy',
+                message: 'Health check failed',
+                error: error.message,
+                timestamp: new Date().toISOString(),
+                uptime: Math.floor(process.uptime()) + 's',
+                responseTime: responseTime + 'ms'
+            });
+        }
+    });
 
         // --- Root endpoint for testing ---
         app.get('/', (req, res) => {
