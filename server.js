@@ -122,6 +122,12 @@ async function startServer() {
         console.log('⚙️  Setting up middleware...');
         app.use(express.json());
 
+        // --- Middleware untuk Logging Request ---
+        app.use((req, res, next) => {
+            console.log(`[INCOMING REQUEST] ${new Date().toISOString()} | ${req.method} ${req.originalUrl} | From: ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
+            next();
+        });
+
         // --- Session Middleware ---
         console.log('🔐 Setting up session middleware...');
         app.use(session({
