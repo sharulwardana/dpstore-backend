@@ -1,4 +1,4 @@
-// File: Project/dpstore-backend/server.js [ENHANCED LOGGING VERSION]
+// File: Project/dpstore-backend/server.js [WITH GRACEFUL SHUTDOWN]
 
 // Global Error Handling
 process.on('uncaughtException', (err) => {
@@ -54,7 +54,6 @@ async function testDbConnection(retries = 5) {
         let client;
         try {
             console.log(`🔄 Attempting to connect to database (attempt ${6 - retries})...`);
-            console.log('Database URL format check:', process.env.DATABASE_URL ? 'URL exists' : 'URL missing');
             
             client = await pool.connect();
             console.log('✅ Database connection successful.');
@@ -68,9 +67,7 @@ async function testDbConnection(retries = 5) {
         } catch (err) {
             console.error(`❌ Database connection failed (retries left: ${retries - 1}):`, {
                 message: err.message,
-                code: err.code,
-                detail: err.detail,
-                hint: err.hint
+                code: err.code
             });
             
             retries--;
@@ -104,11 +101,10 @@ async function startServer() {
             'https://dpstore-backend-production.up.railway.app',
             'https://healthcheck.railway.app'
         ];
-        console.log('Allowed origins:', allowedOrigins);
         
         const corsOptions = {
             origin: (origin, callback) => {
-                console.log('CORS request from origin:', origin);
+                console.log('CORS request from origin:', origin || 'undefined');
                 if (!origin || allowedOrigins.includes(origin)) {
                     callback(null, true);
                 } else {
@@ -144,18 +140,36 @@ async function startServer() {
         }));
         console.log('✅ Session middleware configured');
 
+        // --- Enhanced Health Check ---
+        app.get('/health', async (req, res) => {
+            console.log('Health check called');
+            try {
+                // Test database connection
+                const dbResult = await pool.query('SELECT 1 as health_check');
+                
+                res.status(200).json({ 
+                    status: 'healthy', 
+                    timestamp: new Date().toISOString(),
+                    env: process.env.NODE_ENV,
+                    database: 'connected',
+                    uptime: Math.floor(process.uptime()),
+                    memory: {
+                        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+                        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+                    }
+                });
+            } catch (error) {
+                console.error('Health check failed:', error);
+                res.status(503).json({
+                    status: 'unhealthy',
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        });
+
         // --- API Routes ---
         console.log('🛣️  Setting up API routes...');
-        app.get('/health', (req, res) => {
-            console.log('Health check called');
-            res.status(200).json({ 
-                status: 'healthy', 
-                timestamp: new Date().toISOString(),
-                env: process.env.NODE_ENV,
-                database: 'connected'
-            });
-        });
-        
         app.use('/api', publicRoutes);
         app.use('/api/auth', authRoutes);
         app.use('/api/admin', adminRoutes);
@@ -168,12 +182,38 @@ async function startServer() {
         });
 
         const HOST = '0.0.0.0';
-        app.listen(port, HOST, () => {
+        const server = app.listen(port, HOST, () => {
             console.log(`🚀 Server running successfully on http://${HOST}:${port}`);
             console.log(`🌍 Health check available at: http://${HOST}:${port}/health`);
             console.log(`📊 API endpoints available at: http://${HOST}:${port}/api`);
             console.log('✅ DPStore Backend is ready to serve requests!');
         });
+
+        // Graceful shutdown handling
+        const gracefulShutdown = (signal) => {
+            console.log(`Received ${signal}. Graceful shutdown initiated...`);
+            
+            server.close(() => {
+                console.log('HTTP server closed.');
+                
+                // Close database pool
+                pool.end(() => {
+                    console.log('Database pool closed.');
+                    console.log('✅ Graceful shutdown completed');
+                    process.exit(0);
+                });
+            });
+            
+            // Force shutdown after 30 seconds
+            setTimeout(() => {
+                console.error('Could not close connections in time, forcefully shutting down');
+                process.exit(1);
+            }, 30000);
+        };
+
+        // Listen for shutdown signals
+        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
         
     } catch (error) {
         console.error("❌ Failed to start the server due to a critical error during initialization:", error);
