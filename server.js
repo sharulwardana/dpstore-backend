@@ -103,19 +103,14 @@ async function startServer() {
         ];
         
         const corsOptions = {
-            origin: (origin, callback) => {
-                console.log('CORS request from origin:', origin || 'undefined');
-                if (!origin || allowedOrigins.includes(origin)) {
-                    callback(null, true);
-                } else {
-                    console.warn(`CORS blocked origin: ${origin}`);
-                    callback(new Error(`Origin '${origin}' is not allowed by CORS`));
-                }
-            },
+            origin: allowedOrigins, // PERUBAHAN: Langsung berikan array ke origin
             credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // TAMBAHAN: Lebih eksplisit
+            allowedHeaders: ['Content-Type', 'Authorization']  // TAMBAHAN: Lebih eksplisit
         };
+        
         app.use(cors(corsOptions));
-        app.options('*', cors(corsOptions));
+        app.options('*', cors(corsOptions)); // Menangani pre-flight requests 
         console.log('✅ CORS configured');
 
         // --- Middleware ---
